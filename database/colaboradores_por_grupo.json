@@ -1,0 +1,111 @@
+{
+    "2041 - PARÁ": {
+        "login_geral": "lider.pa",
+        "senha_geral": "pa@2041",
+        "subdisciplinas": {
+            "SMC": {
+                "login": "smc.pa",
+                "senha": "pa@2041",
+                "colaboradores": [
+                    "Maria Silva",
+                    "João Santos",
+                    "Ana Costa",
+                    "Pedro"
+                ]
+            },
+            "Fiscalização": {
+                "login": "fisc.pa",
+                "senha": "pa@2041",
+                "colaboradores": [
+                    "Carlos Souza",
+                    "Fernanda Lima",
+                    "Paulo Henrique"
+                ]
+            },
+            "Projetos": {
+                "login": "proj.pa",
+                "senha": "pa@2041",
+                "colaboradores": [
+                    "Lucas Almeida",
+                    "Bruna Rocha",
+                    "Diego Ribeiro"
+                ]
+            },
+            "Ambiental": {
+                "login": "amb.pa",
+                "senha": "pa@2041",
+                "colaboradores": [
+                    "Camila Ferreira",
+                    "Rafael Gomes",
+                    "Mariana Dias"
+                ]
+            }
+        }
+    },
+    "2042 - AMAPÁ": {
+        "login_geral": "lider.ap",
+        "senha_geral": "ap@2042",
+        "subdisciplinas": {
+            "Projetos": {
+                "login": "proj.ap",
+                "senha": "ap@2042",
+                "colaboradores": [
+                    "Roberto Alves",
+                    "Juliana Mendes",
+                    "Thiago Santos"
+                ]
+            },
+            "Ambiental": {
+                "login": "amb.ap",
+                "senha": "ap@2042",
+                "colaboradores": [
+                    "Marcos Pereira",
+                    "Patrícia Rocha",
+                    "Letícia Souza"
+                ]
+            },
+            "Fiscalização": {
+                "login": "fisc.ap",
+                "senha": "ap@2042",
+                "colaboradores": [
+                    "Eduardo Lima",
+                    "Beatriz Martins",
+                    "Gabriel Costa"
+                ]
+            }
+        }
+    },
+    "2043 - GOIÁS": {
+        "login_geral": "lider.go",
+        "senha_geral": "go@2043",
+        "subdisciplinas": {
+            "Projetos": {
+                "login": "proj.go",
+                "senha": "go@2043",
+                "colaboradores": [
+                    "Lucas Oliveira",
+                    "Camila Ferreira",
+                    "André Barbosa"
+                ]
+            },
+            "Ambiental": {
+                "login": "amb.go",
+                "senha": "go@2043",
+                "colaboradores": [
+                    "Rafael Gomes",
+                    "Beatriz Martins",
+                    "Vanessa Cruz"
+                ]
+            },
+            "Fiscalização": {
+                "login": "fisc.go",
+                "senha": "go@2043",
+                "colaboradores": [
+                    "Rodrigo Nunes",
+                    "Amanda Silva",
+                    " Felipe Castro"
+                ]
+            }
+        }
+    }
+}
