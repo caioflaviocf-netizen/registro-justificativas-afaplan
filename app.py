@@ -8,7 +8,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from filelock import FileLock
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO DA PÁGINA E ESTILO VISUAL (AFAPLAN)
+# 1. CONFIGURAÇÃO DA PÁGINA E TEMA CLARO (FIEL AO MODELO AFAPLAN)
 # ==============================================================================
 st.set_page_config(
     page_title="Registro de Justificativas de Desempenho - Afaplan",
@@ -19,30 +19,42 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Remove padding excessivo do topo */
-    .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 2.5rem;
-        max-width: 1180px;
+    /* Força tema claro consistente em qualquer dispositivo ou preferência do navegador */
+    [data-testid="stAppViewContainer"],
+    [data-testid="stHeader"],
+    .stApp {
+        background-color: #f4f6f9 !important;
+        color: #1f2933 !important;
     }
-    /* Banner superior fiel ao layout Afaplan */
+    .block-container {
+        padding-top: 0 !important;
+        padding-bottom: 3rem !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        max-width: 100% !important;
+    }
+    .main-content-wrap {
+        max-width: 1140px;
+        margin: 24px auto 0 auto;
+        padding: 0 20px;
+    }
+
+    /* Cabeçalho superior idêntico ao modelo Afaplan */
     .afaplan-banner {
         display: flex;
         align-items: stretch;
         background-color: #ffffff;
-        border-radius: 8px;
         box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-        overflow: hidden;
-        margin-bottom: 1.5rem;
-        border: 1px solid #d9e2ec;
+        min-height: 76px;
+        width: 100%;
     }
     .afaplan-logo-box {
         background-color: #ffffff;
-        padding: 14px 26px;
+        padding: 12px 26px;
         display: flex;
         align-items: center;
         justify-content: center;
-        min-width: 210px;
+        min-width: 225px;
     }
     .afaplan-title-box {
         flex: 1;
@@ -51,13 +63,13 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 14px 28px;
+        padding: 12px 28px;
+        gap: 14px;
         flex-wrap: wrap;
-        gap: 10px;
     }
     .afaplan-title-box h1 {
         color: #ffffff !important;
-        font-size: 1.35rem !important;
+        font-size: 1.38rem !important;
         font-weight: 700 !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -71,17 +83,32 @@ st.markdown("""
         font-size: 0.85rem;
         font-weight: 600;
     }
-    /* Caixa de Notas (Feriados) */
+
+    /* Rótulos e inputs no estilo claro */
+    label, .stSelectbox label, .stTextInput label, .stMarkdown p {
+        color: #1f2933 !important;
+    }
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"] > div,
+    input[type="text"],
+    input[type="password"] {
+        background-color: #ffffff !important;
+        color: #102a43 !important;
+        border-color: #cbd2d9 !important;
+    }
+
+    /* Caixa de Notas à direita */
     .notas-card {
         background-color: #fffdf5;
         border: 1px solid #f0d58c;
         border-left: 5px solid #e67700;
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 14px 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         margin-top: 4px;
     }
     .notas-titulo {
-        font-size: 0.96rem;
+        font-size: 0.94rem;
         font-weight: 700;
         color: #9c4221;
         margin-bottom: 10px;
@@ -89,43 +116,80 @@ st.markdown("""
     .feriado-item {
         background: #ffffff;
         border: 1px solid #fae3a8;
-        border-radius: 6px;
-        padding: 8px 12px;
+        border-radius: 5px;
+        padding: 8px 11px;
         margin-bottom: 8px;
         font-size: 0.88rem;
         color: #102a43;
     }
+    .feriado-item:last-child {
+        margin-bottom: 0;
+    }
     .badge-nac {
+        display: inline-block;
         background: #e7f5ff;
         color: #1560bd;
         font-size: 0.74rem;
         font-weight: 700;
         padding: 2px 8px;
         border-radius: 10px;
-        margin-left: 6px;
+        margin-top: 4px;
     }
     .badge-reg {
+        display: inline-block;
         background: #fff4e6;
         color: #d9480f;
         font-size: 0.74rem;
         font-weight: 700;
         padding: 2px 8px;
         border-radius: 10px;
-        margin-left: 6px;
+        margin-top: 4px;
     }
-    /* Botões */
+
+    /* Destaque visual de feriado nos dias da semana */
+    .feriado-dia-alerta {
+        background-color: #fff9db;
+        border: 1px solid #f59f00;
+        color: #9c4221;
+        font-size: 0.80rem;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 4px;
+        display: inline-block;
+        margin-bottom: 4px;
+    }
+
+    /* Botão primário Cadastrar */
     div.stButton > button[kind="primary"] {
-        background-color: #1560bd;
-        border-color: #1560bd;
+        background-color: #1560bd !important;
+        border-color: #1560bd !important;
+        color: #ffffff !important;
         font-weight: 600;
     }
     div.stButton > button[kind="primary"]:hover {
-        background-color: #0f4c9a;
-        border-color: #0f4c9a;
+        background-color: #0f4c9a !important;
+        border-color: #0f4c9a !important;
     }
-    @media (max-width: 768px) {
+    div.stButton > button {
+        background-color: #ffffff;
+        color: #1f2933;
+        border: 1px solid #cbd2d9;
+    }
+
+    /* Tabela de histórico no estilo do modelo */
+    .hist-card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border: 1px solid #d9e2ec;
+        padding: 16px 20px;
+        margin-top: 16px;
+    }
+
+    @media (max-width: 820px) {
         .afaplan-banner { flex-direction: column; }
-        .afaplan-title-box { justify-content: center; text-align: center; }
+        .afaplan-logo-box { min-width: 100%; border-bottom: 1px solid #e4e7eb; }
+        .afaplan-title-box { justify-content: center; text-align: center; padding: 14px 16px; }
         .afaplan-title-box h1 { font-size: 1.1rem !important; }
     }
 </style>
@@ -462,25 +526,30 @@ if "logado" not in st.session_state:
     st.session_state.uf = "PA"
 
 
+def render_banner(badge_texto=""):
+    badge_html = f'<span class="afaplan-badge">{badge_texto}</span>' if badge_texto else ""
+    st.markdown(f"""
+    <div class="afaplan-banner">
+        <div class="afaplan-logo-box">
+            <svg width="165" height="42" viewBox="0 0 170 44" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 36 C8 16, 22 8, 40 8 L40 36 Z" fill="none" stroke="#1560bd" stroke-width="6"/>
+                <text x="50" y="30" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#2d3136">afaplan</text>
+            </svg>
+        </div>
+        <div class="afaplan-title-box">
+            <h1>REGISTRO DE JUSTIFICATIVAS DE DESEMPENHO</h1>
+            {badge_html}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
 def tela_login():
-    col_esq, col_centro, col_dir = st.columns([1, 1.3, 1])
+    render_banner()
+    st.markdown('<div class="main-content-wrap">', unsafe_allow_html=True)
+    _, col_centro, _ = st.columns([1, 1.2, 1])
     with col_centro:
-        logo_path = localizar_logo_path()
-        if logo_path:
-            st.image(logo_path, width=210)
-        else:
-            st.markdown("""
-            <div style="text-align:center; padding: 10px 0;">
-                <svg width="190" height="48" viewBox="0 0 170 44" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M8 36 C8 16, 22 8, 40 8 L40 36 Z" fill="none" stroke="#1560bd" stroke-width="6"/>
-                    <text x="50" y="30" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#2d3136">afaplan</text>
-                </svg>
-            </div>
-            """, unsafe_allow_html=True)
-
-        st.markdown("### SISTEMA DE JUSTIFICATIVAS")
-        st.markdown("---")
-
+        st.markdown("### Acesso ao Sistema de Justificativas")
         projeto_sel = st.selectbox("1. Selecione o Projeto", list(grupos_dados.keys()))
         subdisciplinas_disp = list(grupos_dados[projeto_sel]["subdisciplinas"].keys())
         sub_sel = st.selectbox("2. Selecione a Subdisciplina", subdisciplinas_disp)
@@ -507,6 +576,7 @@ def tela_login():
                     st.rerun()
                 else:
                     st.error("Projeto, subdisciplina, login ou senha incorretos.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def tela_registro():
@@ -515,24 +585,11 @@ def tela_registro():
     usuario = st.session_state.usuario
     uf_projeto = st.session_state.uf
 
-    # Cabeçalho institucional Afaplan
-    st.markdown(f"""
-    <div class="afaplan-banner">
-        <div class="afaplan-logo-box">
-            <svg width="165" height="42" viewBox="0 0 170 44" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8 36 C8 16, 22 8, 40 8 L40 36 Z" fill="none" stroke="#1560bd" stroke-width="6"/>
-                <text x="50" y="30" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#2d3136">afaplan</text>
-            </svg>
-        </div>
-        <div class="afaplan-title-box">
-            <h1>REGISTRO DE JUSTIFICATIVAS DE DESEMPENHO</h1>
-            <span class="afaplan-badge">{projeto} • {subdisciplina} ({usuario})</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_banner(f"{projeto} • {subdisciplina} ({usuario})")
 
-    # Botão superior direito de Sair
-    _, col_sair = st.columns([6, 1])
+    st.markdown('<div class="main-content-wrap">', unsafe_allow_html=True)
+
+    _, col_sair = st.columns([7, 1])
     with col_sair:
         if st.button("Sair", use_container_width=True):
             st.session_state.logado = False
@@ -586,10 +643,14 @@ def tela_registro():
 
             data_curta = d.strftime("%d/%m")
             dia_sem_nome = DIAS_SEMANA_PT[d.weekday()]
-            rotulo_dia = f"{data_curta} — {dia_sem_nome}"
-            if feriado_valido:
-                rotulo_dia += f"  🏷️ [Feriado: {feriado_valido['nome']}]"
 
+            if feriado_valido:
+                st.markdown(
+                    f'<div class="feriado-dia-alerta">Feriado: {feriado_valido["nome"]} ({feriado_valido["tipo"]})</div>',
+                    unsafe_allow_html=True
+                )
+
+            rotulo_dia = f"{data_curta} — {dia_sem_nome}"
             key_input = f"inp_{mes_sel}_{semana_chave}_{data_curta}"
             placeholder_txt = (
                 f"Ex.: Feriado ({feriado_valido['nome']}) ou ocorrência do dia {data_curta}..."
@@ -602,35 +663,34 @@ def tela_registro():
     with col_notas:
         st.markdown("**Notas**")
         if not feriados_semana:
-            notas_html = f"""
-            <div class="notas-card">
-                <div class="notas-titulo">Feriados da Semana ({uf_projeto})</div>
-                <div style="color:#627d98; font-style:italic; font-size:0.88rem;">
-                    Nenhum feriado nacional ou regional ({uf_projeto}) identificado para {semana_chave.lower()} de {mes_sel.lower()}.
-                </div>
-            </div>
-            """
+            notas_html = (
+                f'<div class="notas-card">'
+                f'<div class="notas-titulo">Feriados da Semana ({uf_projeto})</div>'
+                f'<div style="color:#627d98; font-style:italic; font-size:0.88rem;">'
+                f'Nenhum feriado nacional ou regional ({uf_projeto}) identificado para {semana_chave.lower()} de {mes_sel.lower()}.'
+                f'</div></div>'
+            )
         else:
-            itens_html = ""
+            itens_parts = []
             for f in feriados_semana:
                 badge_cls = "badge-nac" if "Nacional" in f["tipo"] else "badge-reg"
-                itens_html += f"""
-                <div class="feriado-item">
-                    <strong>{f['dia_extenso']} ({f['data']}) - {f['nome']}</strong>
-                    <span class="{badge_cls}">{f['tipo']}</span>
-                </div>
-                """
-            notas_html = f"""
-            <div class="notas-card">
-                <div class="notas-titulo">Feriados da Semana ({uf_projeto})</div>
-                {itens_html}
-            </div>
-            """
+                itens_parts.append(
+                    f'<div class="feriado-item">'
+                    f'<div><strong>{f["dia_extenso"]} ({f["data"]}) - {f["nome"]}</strong></div>'
+                    f'<span class="{badge_cls}">{f["tipo"]}</span>'
+                    f'</div>'
+                )
+            notas_html = (
+                f'<div class="notas-card">'
+                f'<div class="notas-titulo">Feriados da Semana ({uf_projeto})</div>'
+                + "".join(itens_parts)
+                + '</div>'
+            )
         st.markdown(notas_html, unsafe_allow_html=True)
 
     # Botões de Ação (Cancelar | Limpar | Cadastrar)
     st.markdown("<br>", unsafe_allow_html=True)
-    _, b1, b2, b3, _ = st.columns([1.5, 1, 1, 1, 1.5])
+    _, b1, b2, b3, _ = st.columns([1.6, 1, 1, 1, 1.6])
 
     with b1:
         if st.button("Cancelar", use_container_width=True):
@@ -668,17 +728,16 @@ def tela_registro():
                 st.success("Justificativa semanal consolidada e registrada no Excel com sucesso!")
                 st.rerun()
 
-    st.markdown("---")
-
     # Histórico de Registros + Download do Excel
-    col_hist_tit, col_dl = st.columns([4, 1.2])
+    st.markdown('<div class="hist-card">', unsafe_allow_html=True)
+    col_hist_tit, col_dl = st.columns([4, 1.3])
     with col_hist_tit:
-        st.subheader("Histórico de Justificativas Registradas")
+        st.markdown("### Histórico de Justificativas")
     with col_dl:
         if os.path.exists(EXCEL_PATH):
             with open(EXCEL_PATH, "rb") as f_xlsx:
                 st.download_button(
-                    label="📥 Baixar Excel (.xlsx)",
+                    label="Baixar Excel (.xlsx)",
                     data=f_xlsx.read(),
                     file_name="justificativas_afaplan.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -689,7 +748,6 @@ def tela_registro():
     if not registros:
         st.info("Nenhuma justificativa registrada para este projeto e subdisciplina ainda.")
     else:
-        # Cabeçalho da tabela
         h1, h2, h3, h4, h5, h6 = st.columns([1.2, 1.3, 1.1, 0.8, 3.2, 0.7])
         h1.markdown("**Data/Hora**")
         h2.markdown("**Colaborador**")
@@ -710,6 +768,9 @@ def tela_registro():
                 excluir_registro_excel(reg["id"], projeto, subdisciplina)
                 st.rerun()
             st.markdown("<hr style='margin: 6px 0; border-top: 1px solid #e4e7eb;'>", unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 if st.session_state.logado:
