@@ -1696,14 +1696,18 @@ inicializar_excel()
 # ==============================================================================
 # 5. CONTROLE DE SESSÃO (LOGIN / LOGOUT)
 # ==============================================================================
-if "logado" not in st.session_state:
-    st.session_state.logado = False
-    st.session_state.projeto = ""
-    st.session_state.is_lider = False
-    st.session_state.usuario = ""
-    st.session_state.nome_colaborador = ""
-    st.session_state.funcao_colaborador = ""
-    st.session_state.uf = "PA"
+DEFAULTS_SESSION = {
+    "logado": False,
+    "projeto": "",
+    "is_lider": False,
+    "usuario": "",
+    "nome_colaborador": "",
+    "funcao_colaborador": "",
+    "uf": "PA"
+}
+for _k, _v in DEFAULTS_SESSION.items():
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
 
 
 def render_banner(badge_texto=""):
@@ -1773,12 +1777,16 @@ def tela_login():
 
 
 def tela_registro():
-    projeto = st.session_state.projeto
-    is_lider = st.session_state.is_lider
-    usuario = st.session_state.usuario
-    nome_colab_logado = st.session_state.nome_colaborador
-    funcao_colab_logado = st.session_state.funcao_colaborador
-    uf_projeto = st.session_state.uf
+    projeto = st.session_state.get("projeto", "")
+    is_lider = st.session_state.get("is_lider", False)
+    usuario = st.session_state.get("usuario", "")
+    nome_colab_logado = st.session_state.get("nome_colaborador", "")
+    funcao_colab_logado = st.session_state.get("funcao_colaborador", "")
+    uf_projeto = st.session_state.get("uf", "PA")
+
+    if not projeto or projeto not in ACESSOS_PROJETOS:
+        st.session_state.logado = False
+        st.rerun()
 
     perfil_label = "Líder" if is_lider else nome_colab_logado
     render_banner(f"{projeto} • {perfil_label} ({usuario})")
