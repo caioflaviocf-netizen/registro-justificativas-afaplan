@@ -1,7 +1,15 @@
 import os
 import json
 import calendar
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
+try:
+    from zoneinfo import ZoneInfo
+    TZ_BRASILIA = ZoneInfo("America/Sao_Paulo")
+except Exception:
+    TZ_BRASILIA = timezone(timedelta(hours=-3))
+
+def agora_brasilia():
+    return datetime.now(TZ_BRASILIA)
 import streamlit as st
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -1562,7 +1570,7 @@ def registrar_acesso_historico(projeto, perfil, usuario, nome_exibicao):
                 historico = []
 
         novo_evento = {
-            "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "data_hora": agora_brasilia().strftime("%d/%m/%Y %H:%M:%S"),
             "projeto": projeto,
             "perfil": perfil,
             "usuario": usuario,
@@ -1575,7 +1583,7 @@ def registrar_acesso_historico(projeto, perfil, usuario, nome_exibicao):
             json.dump(historico, f, ensure_ascii=False, indent=4)
 
 
-def ler_historico_acessos(projeto, is_lider, usuario_login, limite=6):
+def ler_historico_acessos(projeto, is_lider, usuario_login, limite=5):
     with FileLock(ACESSOS_LOCK_PATH, timeout=10):
         if not os.path.exists(ACESSOS_JSON_PATH):
             return []
@@ -1655,8 +1663,8 @@ def salvar_registro_excel(projeto, funcao, usuario, colaborador, mes_op, semana_
     with FileLock(LOCK_PATH, timeout=20):
         wb = load_workbook(EXCEL_PATH)
         ws = wb["Base_Justificativas"]
-        novo_id = datetime.now().strftime("%Y%m%d%H%M%S%f")[:18]
-        data_hora_fmt = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        novo_id = agora_brasilia().strftime("%Y%m%d%H%M%S%f")[:18]
+        data_hora_fmt = agora_brasilia().strftime("%d/%m/%Y %H:%M:%S")
         ws.append([
             novo_id,
             data_hora_fmt,
@@ -1922,7 +1930,7 @@ def tela_registro():
         st.markdown(notas_html, unsafe_allow_html=True)
 
         # Histórico de Acessos dentro do retângulo inferior direito
-        acessos = ler_historico_acessos(projeto, is_lider, usuario, limite=6)
+        acessos = ler_historico_acessos(projeto, is_lider, usuario, limite=5)
         if not acessos:
             acessos_html = (
                 '<div class="acessos-card">'
