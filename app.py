@@ -103,9 +103,20 @@ st.markdown("""
         background-color: #ffffff !important;
         color: #102a43 !important;
         border-color: #cbd2d9 !important;
+        font-size: 0.94rem !important;
     }
 
-    /* Card de cada linha diária (Data/Hora + Caixa de texto centralizada/alinhada) */
+    /* Melhora a nitidez e o contraste do texto modelo (placeholder) dentro das caixas de texto */
+    input::placeholder,
+    textarea::placeholder,
+    div[data-baseweb="input"] input::placeholder {
+        color: #486581 !important;
+        opacity: 1 !important;
+        font-size: 0.88rem !important;
+        font-weight: 400 !important;
+    }
+
+    /* Card de cada linha diária */
     .dia-card-box {
         background-color: #ffffff;
         border: 1px solid #e4e7eb;
@@ -150,6 +161,7 @@ st.markdown("""
         padding: 14px 16px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         margin-top: 4px;
+        margin-bottom: 16px;
     }
     .notas-titulo {
         font-size: 0.94rem;
@@ -190,6 +202,45 @@ st.markdown("""
         margin-top: 4px;
     }
 
+    /* Card de Histórico de Acessos na coluna direita */
+    .acessos-card {
+        background-color: #ffffff;
+        border: 1px solid #d9e2ec;
+        border-left: 5px solid #1560bd;
+        border-radius: 6px;
+        padding: 14px 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        margin-top: 4px;
+    }
+    .acessos-titulo {
+        font-size: 0.94rem;
+        font-weight: 700;
+        color: #102a43;
+        margin-bottom: 10px;
+    }
+    .acesso-item {
+        background: #f8fafc;
+        border: 1px solid #e4e7eb;
+        border-radius: 5px;
+        padding: 8px 10px;
+        margin-bottom: 8px;
+        font-size: 0.84rem;
+        color: #334e68;
+    }
+    .acesso-item:last-child {
+        margin-bottom: 0;
+    }
+    .acesso-hora {
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: #1560bd;
+    }
+    .acesso-vazio {
+        color: #627d98;
+        font-style: italic;
+        font-size: 0.85rem;
+    }
+
     /* Botões */
     div.stButton > button[kind="primary"] {
         background-color: #1560bd !important;
@@ -207,7 +258,7 @@ st.markdown("""
         border: 1px solid #cbd2d9;
     }
 
-    /* Histórico */
+    /* Histórico de Justificativas */
     .hist-card {
         background: #ffffff;
         border-radius: 8px;
@@ -215,6 +266,15 @@ st.markdown("""
         border: 1px solid #d9e2ec;
         padding: 16px 20px;
         margin-top: 18px;
+    }
+    .hist-vazio-box {
+        background-color: #f8fafc;
+        border: 1px solid #e4e7eb;
+        border-radius: 6px;
+        padding: 12px 16px;
+        color: #486581;
+        font-size: 0.90rem;
+        text-align: center;
     }
 
     @media (max-width: 768px) {
@@ -417,6 +477,8 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 GRUPOS_JSON_PATH = os.path.join(DB_DIR, "colaboradores_por_grupo.json")
 EXCEL_PATH = os.path.join(DB_DIR, "justificativas_afaplan.xlsx")
 LOCK_PATH = os.path.join(DB_DIR, "justificativas_afaplan.xlsx.lock")
+ACESSOS_JSON_PATH = os.path.join(DB_DIR, "historico_acessos.json")
+ACESSOS_LOCK_PATH = os.path.join(DB_DIR, "historico_acessos.json.lock")
 
 COLUNAS_EXCEL = [
     "ID_Registro",
@@ -467,6 +529,49 @@ def carregar_estrutura_grupos():
                 if sub not in dados[proj]["subdisciplinas"]:
                     dados[proj]["subdisciplinas"][sub] = sub_cfg
     return dados
+
+
+def registrar_acesso_historico(projeto, subdisciplina, usuario):
+    with FileLock(ACESSOS_LOCK_PATH, timeout=10):
+        historico = []
+        if os.path.exists(ACESSOS_JSON_PATH):
+            try:
+                with open(ACESSOS_JSON_PATH, "r", encoding="utf-8") as f:
+                    historico = json.load(f)
+            except Exception:
+                historico = []
+
+        novo_evento = {
+            "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "projeto": projeto,
+            "subdisciplina": subdisciplina,
+            "usuario": usuario
+        }
+        historico.insert(0, novo_evento)
+        historico = historico[:50]
+
+        with open(ACESSOS_JSON_PATH, "w", encoding="utf-8") as f:
+            json.dump(historico, f, ensure_ascii=False, indent=4)
+
+
+def ler_historico_acessos(projeto=None, subdisciplina=None, limite=8):
+    with FileLock(ACESSOS_LOCK_PATH, timeout=10):
+        if not os.path.exists(ACESSOS_JSON_PATH):
+            return []
+        try:
+            with open(ACESSOS_JSON_PATH, "r", encoding="utf-8") as f:
+                historico = json.load(f)
+        except Exception:
+            return []
+
+    if projeto and subdisciplina:
+        filtrados = [
+            h for h in historico
+            if h.get("projeto") == projeto and h.get("subdisciplina") == subdisciplina
+        ]
+        if filtrados:
+            return filtrados[:limite]
+    return historico[:limite]
 
 
 def inicializar_excel():
@@ -605,8 +710,8 @@ def tela_login():
         sub_sel = st.selectbox("2. Selecione a Subdisciplina", subdisciplinas_disp)
 
         with st.form("form_login_st"):
-            usuario_inp = st.text_input("3. Login de Acesso", placeholder="Digite seu usuário")
-            senha_inp = st.text_input("4. Senha", type="password", placeholder="Digite sua senha")
+            usuario_inp = st.text_input("3. Login de Acesso", placeholder="Ex.: lider.pa, smc.pa, fisc.pa...")
+            senha_inp = st.text_input("4. Senha", type="password", placeholder="Digite a senha do projeto")
             entrar = st.form_submit_button("Acessar Painel", type="primary", use_container_width=True)
 
             if entrar:
@@ -623,6 +728,7 @@ def tela_login():
                     st.session_state.subdisciplina = sub_sel
                     st.session_state.usuario = u_clean
                     st.session_state.uf = proj_cfg["uf"]
+                    registrar_acesso_historico(projeto_sel, sub_sel, u_clean)
                     st.rerun()
                 else:
                     st.error("Projeto, subdisciplina, login ou senha incorretos.")
@@ -659,7 +765,7 @@ def tela_registro():
     semana_obj = next(s for s in semanas_mes if s["rotulo"] == semana_rotulo_sel)
     semana_chave = semana_obj["chave"]
 
-    # Linha 2: Justificativa Diária Centralizada/Alinhada (Esquerda) + Notas de Feriados (Direita)
+    # Linha 2: Justificativa Diária (Esquerda) + Notas de Feriados e Histórico de Acessos (Direita)
     col_dias, col_notas = st.columns([1.85, 1])
 
     feriados_semana = []
@@ -713,7 +819,7 @@ def tela_registro():
                 placeholder_txt = (
                     f"Ex.: Feriado ({feriado_valido['nome']}) ou ocorrência do dia {data_curta}..."
                     if feriado_valido
-                    else f"Ocorrência do dia {data_curta} (Ex.: Fiquei doente, Atestado médico, Não se aplica...)"
+                    else f"Ex.: Fiquei doente / Atestado médico / Não se aplica ({data_curta})"
                 )
                 texto_dia = st.text_input(
                     f"Justificativa {data_curta}",
@@ -729,7 +835,7 @@ def tela_registro():
             notas_html = (
                 f'<div class="notas-card">'
                 f'<div class="notas-titulo">Feriados da Semana ({uf_projeto})</div>'
-                f'<div style="color:#627d98; font-style:italic; font-size:0.88rem;">'
+                f'<div style="color:#486581; font-style:italic; font-size:0.88rem;">'
                 f'Nenhum feriado nacional ou regional ({uf_projeto}) identificado para {semana_chave.lower()} de {mes_sel.lower()}.'
                 f'</div></div>'
             )
@@ -750,6 +856,33 @@ def tela_registro():
                 + '</div>'
             )
         st.markdown(notas_html, unsafe_allow_html=True)
+
+        # Histórico de Acessos dentro do retângulo inferior direito
+        acessos = ler_historico_acessos(projeto, subdisciplina, limite=6)
+        if not acessos:
+            acessos_html = (
+                '<div class="acessos-card">'
+                '<div class="acessos-titulo">Histórico de Acessos</div>'
+                '<div class="acesso-vazio">Nenhum acesso registrado até o momento.</div>'
+                '</div>'
+            )
+        else:
+            ac_parts = []
+            for ac in acessos:
+                ac_parts.append(
+                    f'<div class="acesso-item">'
+                    f'<div class="acesso-hora">{ac.get("data_hora", "")}</div>'
+                    f'<div><strong>Usuário:</strong> {ac.get("usuario", "")}</div>'
+                    f'<div>{ac.get("projeto", "")} • {ac.get("subdisciplina", "")}</div>'
+                    f'</div>'
+                )
+            acessos_html = (
+                '<div class="acessos-card">'
+                '<div class="acessos-titulo">Histórico de Acessos</div>'
+                + "".join(ac_parts)
+                + '</div>'
+            )
+        st.markdown(acessos_html, unsafe_allow_html=True)
 
     # Botões de Ação centralizados (Cancelar | Limpar | Cadastrar)
     st.markdown("<br>", unsafe_allow_html=True)
@@ -791,25 +924,16 @@ def tela_registro():
                 st.success("Justificativa semanal consolidada e registrada no Excel com sucesso!")
                 st.rerun()
 
-    # Histórico de Registros + Download do Excel
+    # Histórico de Justificativas
     st.markdown('<div class="hist-card">', unsafe_allow_html=True)
-    col_hist_tit, col_dl = st.columns([4, 1.3])
-    with col_hist_tit:
-        st.markdown("### Histórico de Justificativas")
-    with col_dl:
-        if os.path.exists(EXCEL_PATH):
-            with open(EXCEL_PATH, "rb") as f_xlsx:
-                st.download_button(
-                    label="Baixar Excel (.xlsx)",
-                    data=f_xlsx.read(),
-                    file_name="justificativas_afaplan.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
+    st.markdown("### Histórico de Justificativas")
 
     registros = ler_registros_excel(projeto, subdisciplina)
     if not registros:
-        st.info("Nenhuma justificativa registrada para este projeto e subdisciplina ainda.")
+        st.markdown(
+            '<div class="hist-vazio-box">Nenhuma justificativa registrada para este projeto e subdisciplina ainda.</div>',
+            unsafe_allow_html=True
+        )
     else:
         h1, h2, h3, h4, h5, h6 = st.columns([1.2, 1.3, 1.1, 0.8, 3.2, 0.7])
         h1.markdown("**Data/Hora**")
