@@ -8,7 +8,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from filelock import FileLock
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO DA PÁGINA E TEMA CLARO (FIEL AO MODELO AFAPLAN)
+# 1. CONFIGURAÇÃO DA PÁGINA E TEMA CLARO (FIEL AO MODELO DE REFERÊNCIA)
 # ==============================================================================
 st.set_page_config(
     page_title="Registro de Justificativas de Desempenho - Afaplan",
@@ -19,34 +19,41 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Força tema claro consistente em qualquer dispositivo ou preferência do navegador */
+    /* Tema claro uniforme em qualquer dispositivo */
     [data-testid="stAppViewContainer"],
     [data-testid="stHeader"],
     .stApp {
         background-color: #f4f6f9 !important;
         color: #1f2933 !important;
     }
-    .block-container {
-        padding-top: 0 !important;
-        padding-bottom: 3rem !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-        max-width: 100% !important;
-    }
-    .main-content-wrap {
-        max-width: 1140px;
-        margin: 24px auto 0 auto;
-        padding: 0 20px;
+
+    /* Garante que a barra superior do Streamlit não corte o cabeçalho */
+    [data-testid="stHeader"] {
+        background-color: rgba(244, 246, 249, 0.85) !important;
+        height: 3.2rem !important;
     }
 
-    /* Cabeçalho superior idêntico ao modelo Afaplan */
+    .block-container {
+        padding-top: 3.4rem !important;
+        padding-bottom: 3rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+        max-width: 1180px !important;
+        margin: 0 auto !important;
+    }
+
+    /* Cabeçalho superior fiel ao modelo de referência */
     .afaplan-banner {
         display: flex;
         align-items: stretch;
         background-color: #ffffff;
         box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        border-radius: 6px;
+        overflow: hidden;
         min-height: 76px;
         width: 100%;
+        margin-bottom: 14px;
+        border: 1px solid #d9e2ec;
     }
     .afaplan-logo-box {
         background-color: #ffffff;
@@ -54,7 +61,7 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: center;
-        min-width: 225px;
+        min-width: 215px;
     }
     .afaplan-title-box {
         flex: 1;
@@ -63,28 +70,29 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px 28px;
-        gap: 14px;
+        padding: 12px 26px;
+        gap: 12px;
         flex-wrap: wrap;
     }
     .afaplan-title-box h1 {
         color: #ffffff !important;
-        font-size: 1.38rem !important;
+        font-size: 1.35rem !important;
         font-weight: 700 !important;
         margin: 0 !important;
         padding: 0 !important;
         letter-spacing: 0.5px;
+        line-height: 1.2 !important;
     }
     .afaplan-badge {
         background: rgba(255,255,255,0.18);
         color: #ffffff;
         padding: 5px 14px;
         border-radius: 20px;
-        font-size: 0.85rem;
+        font-size: 0.84rem;
         font-weight: 600;
     }
 
-    /* Rótulos e inputs no estilo claro */
+    /* Rótulos e inputs */
     label, .stSelectbox label, .stTextInput label, .stMarkdown p {
         color: #1f2933 !important;
     }
@@ -95,6 +103,42 @@ st.markdown("""
         background-color: #ffffff !important;
         color: #102a43 !important;
         border-color: #cbd2d9 !important;
+    }
+
+    /* Card de cada linha diária (Data/Hora + Caixa de texto centralizada/alinhada) */
+    .dia-card-box {
+        background-color: #ffffff;
+        border: 1px solid #e4e7eb;
+        border-radius: 6px;
+        padding: 10px 14px;
+        margin-bottom: 8px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .dia-card-box.feriado-destaque {
+        background-color: #fffdf5;
+        border: 1px solid #f59f00;
+        border-left: 4px solid #e67700;
+    }
+    .dia-titulo-linha {
+        font-weight: 700;
+        font-size: 0.92rem;
+        color: #102a43;
+        margin-bottom: 2px;
+    }
+    .dia-sub-linha {
+        font-size: 0.78rem;
+        color: #627d98;
+    }
+    .feriado-selo {
+        display: inline-block;
+        background-color: #fef3c7;
+        color: #9c4221;
+        border: 1px solid #fcd34d;
+        font-size: 0.74rem;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 4px;
+        margin-top: 4px;
     }
 
     /* Caixa de Notas à direita */
@@ -146,20 +190,7 @@ st.markdown("""
         margin-top: 4px;
     }
 
-    /* Destaque visual de feriado nos dias da semana */
-    .feriado-dia-alerta {
-        background-color: #fff9db;
-        border: 1px solid #f59f00;
-        color: #9c4221;
-        font-size: 0.80rem;
-        font-weight: 600;
-        padding: 3px 8px;
-        border-radius: 4px;
-        display: inline-block;
-        margin-bottom: 4px;
-    }
-
-    /* Botão primário Cadastrar */
+    /* Botões */
     div.stButton > button[kind="primary"] {
         background-color: #1560bd !important;
         border-color: #1560bd !important;
@@ -176,21 +207,37 @@ st.markdown("""
         border: 1px solid #cbd2d9;
     }
 
-    /* Tabela de histórico no estilo do modelo */
+    /* Histórico */
     .hist-card {
         background: #ffffff;
         border-radius: 8px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         border: 1px solid #d9e2ec;
         padding: 16px 20px;
-        margin-top: 16px;
+        margin-top: 18px;
     }
 
-    @media (max-width: 820px) {
-        .afaplan-banner { flex-direction: column; }
-        .afaplan-logo-box { min-width: 100%; border-bottom: 1px solid #e4e7eb; }
-        .afaplan-title-box { justify-content: center; text-align: center; padding: 14px 16px; }
-        .afaplan-title-box h1 { font-size: 1.1rem !important; }
+    @media (max-width: 768px) {
+        .block-container {
+            padding-top: 3.6rem !important;
+            padding-left: 0.8rem !important;
+            padding-right: 0.8rem !important;
+        }
+        .afaplan-banner {
+            flex-direction: column;
+        }
+        .afaplan-logo-box {
+            min-width: 100%;
+            border-bottom: 1px solid #e4e7eb;
+        }
+        .afaplan-title-box {
+            justify-content: center;
+            text-align: center;
+            padding: 12px 14px;
+        }
+        .afaplan-title-box h1 {
+            font-size: 1.05rem !important;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -528,27 +575,30 @@ if "logado" not in st.session_state:
 
 def render_banner(badge_texto=""):
     badge_html = f'<span class="afaplan-badge">{badge_texto}</span>' if badge_texto else ""
-    st.markdown(f"""
-    <div class="afaplan-banner">
-        <div class="afaplan-logo-box">
-            <svg width="165" height="42" viewBox="0 0 170 44" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8 36 C8 16, 22 8, 40 8 L40 36 Z" fill="none" stroke="#1560bd" stroke-width="6"/>
-                <text x="50" y="30" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#2d3136">afaplan</text>
-            </svg>
-        </div>
-        <div class="afaplan-title-box">
-            <h1>REGISTRO DE JUSTIFICATIVAS DE DESEMPENHO</h1>
-            {badge_html}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="afaplan-banner">'
+        f'<div class="afaplan-logo-box">'
+        f'<svg width="165" height="42" viewBox="0 0 170 44" xmlns="http://www.w3.org/2000/svg">'
+        f'<path d="M8 36 C8 16, 22 8, 40 8 L40 36 Z" fill="none" stroke="#1560bd" stroke-width="6"/>'
+        f'<text x="50" y="30" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#2d3136">afaplan</text>'
+        f'</svg>'
+        f'</div>'
+        f'<div class="afaplan-title-box">'
+        f'<h1>REGISTRO DE JUSTIFICATIVAS DE DESEMPENHO</h1>'
+        f'{badge_html}'
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
 
 
 def tela_login():
     render_banner()
-    st.markdown('<div class="main-content-wrap">', unsafe_allow_html=True)
     _, col_centro, _ = st.columns([1, 1.2, 1])
     with col_centro:
+        logo_path = localizar_logo_path()
+        if logo_path:
+            st.image(logo_path, width=200)
         st.markdown("### Acesso ao Sistema de Justificativas")
         projeto_sel = st.selectbox("1. Selecione o Projeto", list(grupos_dados.keys()))
         subdisciplinas_disp = list(grupos_dados[projeto_sel]["subdisciplinas"].keys())
@@ -576,7 +626,6 @@ def tela_login():
                     st.rerun()
                 else:
                     st.error("Projeto, subdisciplina, login ou senha incorretos.")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def tela_registro():
@@ -587,9 +636,7 @@ def tela_registro():
 
     render_banner(f"{projeto} • {subdisciplina} ({usuario})")
 
-    st.markdown('<div class="main-content-wrap">', unsafe_allow_html=True)
-
-    _, col_sair = st.columns([7, 1])
+    _, col_sair = st.columns([8, 1])
     with col_sair:
         if st.button("Sair", use_container_width=True):
             st.session_state.logado = False
@@ -599,7 +646,7 @@ def tela_registro():
     colaboradores = grupos_dados[projeto]["subdisciplinas"][subdisciplina]["colaboradores"]
     idx_nov = OPCOES_MES_ANO.index("Novembro / 2026") if "Novembro / 2026" in OPCOES_MES_ANO else 0
 
-    c1, c2, c3 = st.columns([1.6, 1.1, 1.3])
+    c1, c2, c3 = st.columns([1.5, 1.1, 1.4])
     with c1:
         colaborador_sel = st.selectbox("Nome do Colaborador", colaboradores)
     with c2:
@@ -612,15 +659,15 @@ def tela_registro():
     semana_obj = next(s for s in semanas_mes if s["rotulo"] == semana_rotulo_sel)
     semana_chave = semana_obj["chave"]
 
-    # Linha 2: Justificativa Diária (Esquerda) + Notas de Feriados (Direita)
-    col_dias, col_notas = st.columns([1.75, 1])
+    # Linha 2: Justificativa Diária Centralizada/Alinhada (Esquerda) + Notas de Feriados (Direita)
+    col_dias, col_notas = st.columns([1.85, 1])
 
     feriados_semana = []
     with col_dias:
         st.markdown("**Descrição Diária dos Acontecimentos da Semana (Justificativa por dia)**")
         st.caption(
-            f"Período: {semana_obj['inicio'].strftime('%d/%m/%Y')} (Quinta) a "
-            f"{semana_obj['fim'].strftime('%d/%m/%Y')} (Quarta)"
+            f"Período da Semana: {semana_obj['inicio'].strftime('%d/%m/%Y')} (Quinta) a "
+            f"{semana_obj['fim'].strftime('%d/%m/%Y')} (Quarta)  •  Ciclo: Quinta-feira a Quarta-feira"
         )
 
         entradas_dias = []
@@ -642,22 +689,38 @@ def tela_registro():
                 feriados_semana.append(feriado_valido)
 
             data_curta = d.strftime("%d/%m")
+            data_comp = d.strftime("%d/%m/%Y")
             dia_sem_nome = DIAS_SEMANA_PT[d.weekday()]
+            key_input = f"inp_{mes_sel}_{semana_chave}_{data_curta}"
 
-            if feriado_valido:
+            box_cls = "dia-card-box feriado-destaque" if feriado_valido else "dia-card-box"
+            selo_html = (
+                f'<div><span class="feriado-selo">Feriado: {feriado_valido["nome"]}</span></div>'
+                if feriado_valido else ""
+            )
+
+            col_lbl, col_inp = st.columns([1.05, 2.2], vertical_alignment="center")
+            with col_lbl:
                 st.markdown(
-                    f'<div class="feriado-dia-alerta">Feriado: {feriado_valido["nome"]} ({feriado_valido["tipo"]})</div>',
+                    f'<div class="{box_cls}">'
+                    f'<div class="dia-titulo-linha">{data_curta} — {dia_sem_nome}</div>'
+                    f'<div class="dia-sub-linha">{data_comp}</div>'
+                    f'{selo_html}'
+                    f'</div>',
                     unsafe_allow_html=True
                 )
-
-            rotulo_dia = f"{data_curta} — {dia_sem_nome}"
-            key_input = f"inp_{mes_sel}_{semana_chave}_{data_curta}"
-            placeholder_txt = (
-                f"Ex.: Feriado ({feriado_valido['nome']}) ou ocorrência do dia {data_curta}..."
-                if feriado_valido
-                else f"Ocorrência do dia {data_curta} (Ex.: Fiquei doente, Atestado médico, Não se aplica...)"
-            )
-            texto_dia = st.text_input(rotulo_dia, key=key_input, placeholder=placeholder_txt)
+            with col_inp:
+                placeholder_txt = (
+                    f"Ex.: Feriado ({feriado_valido['nome']}) ou ocorrência do dia {data_curta}..."
+                    if feriado_valido
+                    else f"Ocorrência do dia {data_curta} (Ex.: Fiquei doente, Atestado médico, Não se aplica...)"
+                )
+                texto_dia = st.text_input(
+                    f"Justificativa {data_curta}",
+                    key=key_input,
+                    placeholder=placeholder_txt,
+                    label_visibility="collapsed"
+                )
             entradas_dias.append((data_curta, texto_dia))
 
     with col_notas:
@@ -688,9 +751,9 @@ def tela_registro():
             )
         st.markdown(notas_html, unsafe_allow_html=True)
 
-    # Botões de Ação (Cancelar | Limpar | Cadastrar)
+    # Botões de Ação centralizados (Cancelar | Limpar | Cadastrar)
     st.markdown("<br>", unsafe_allow_html=True)
-    _, b1, b2, b3, _ = st.columns([1.6, 1, 1, 1, 1.6])
+    _, b1, b2, b3, _ = st.columns([1.8, 1, 1, 1, 1.8])
 
     with b1:
         if st.button("Cancelar", use_container_width=True):
@@ -769,7 +832,6 @@ def tela_registro():
                 st.rerun()
             st.markdown("<hr style='margin: 6px 0; border-top: 1px solid #e4e7eb;'>", unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
