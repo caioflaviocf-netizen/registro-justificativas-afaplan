@@ -101,17 +101,36 @@ st.markdown("""
     }
 
     /* Rótulos e inputs */
-    label, .stSelectbox label, .stTextInput label, .stMarkdown p {
+    label, .stSelectbox label, .stTextInput label, .stTextArea label, .stMarkdown p, .stMarkdown span {
         color: #1f2933 !important;
     }
     div[data-baseweb="select"] > div,
     div[data-baseweb="input"] > div,
+    div[data-baseweb="textarea"],
+    div[data-baseweb="textarea"] > div,
+    textarea,
     input[type="text"],
     input[type="password"] {
         background-color: #ffffff !important;
         color: #102a43 !important;
         border-color: #cbd2d9 !important;
         font-size: 0.94rem !important;
+    }
+
+    /* Garante que o expander e o cabeçalho "Alterar Registro Selecionado" tenham visual claro e legível */
+    [data-testid="stExpander"],
+    [data-testid="stExpander"] details,
+    [data-testid="stExpander"] summary,
+    [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
+        background-color: #f8fafc !important;
+        color: #102a43 !important;
+        border-color: #cbd2d9 !important;
+    }
+    [data-testid="stExpander"] summary span,
+    [data-testid="stExpander"] summary p {
+        color: #1560bd !important;
+        font-weight: 700 !important;
+        font-size: 1.02rem !important;
     }
 
     /* Melhora a nitidez e o contraste do texto modelo (placeholder) dentro das caixas de texto */
@@ -2092,15 +2111,47 @@ def tela_registro():
                 ed_mes = st.selectbox("Mês/Ano de Operação", OPCOES_MES_ANO, index=idx_m, key=f"ed_mes_{reg_selecionado['id']}")
             with ec3:
                 semanas_ed = gerar_semanas_quinta_quarta(ed_mes)
+                rotulos_sem_ed = [s["rotulo"] for s in semanas_ed]
                 chaves_sem_ed = [s["chave"] for s in semanas_ed]
                 idx_s = chaves_sem_ed.index(reg_selecionado["semana"]) if reg_selecionado["semana"] in chaves_sem_ed else 0
-                ed_semana = st.selectbox("Semana", chaves_sem_ed, index=idx_s, key=f"ed_sem_{reg_selecionado['id']}")
+                ed_semana_rotulo = st.selectbox("Semana (Quinta a Quarta)", rotulos_sem_ed, index=idx_s, key=f"ed_sem_{reg_selecionado['id']}")
 
+            semana_ed_obj = next(s for s in semanas_ed if s["rotulo"] == ed_semana_rotulo)
+            ed_semana = semana_ed_obj["chave"]
+
+            # Ajusta automaticamente as datas na descrição quando a semana ou mês selecionado muda em relação ao registro original
+            texto_base_ed = reg_selecionado["justificativa"]
+            if ed_mes != reg_selecionado["mes"] or ed_semana != reg_selecionado["semana"]:
+                import re
+                partes_orig = [p.strip().rstrip(".") for p in texto_base_ed.split(";") if p.strip()]
+                textos_ocorrencias = []
+                for pt in partes_orig:
+                    m_match = re.match(r"^\d{2}/\d{2}\s*-\s*(.+)$", pt)
+                    textos_ocorrencias.append(m_match.group(1).strip() if m_match else pt)
+
+                novas_linhas_ed = []
+                for idx_d, d_novo in enumerate(semana_ed_obj["dias"]):
+                    dt_novo_str = d_novo.strftime("%d/%m")
+                    if idx_d < len(textos_ocorrencias):
+                        ocorrencia = textos_ocorrencias[idx_d]
+                    elif textos_ocorrencias:
+                        ocorrencia = textos_ocorrencias[-1]
+                    else:
+                        ocorrencia = "Não se aplica"
+                    novas_linhas_ed.append(f"{dt_novo_str} - {ocorrencia}")
+                texto_base_ed = "; ".join(novas_linhas_ed) + "."
+
+            st.caption(
+                f"Período da Semana Selecionada: {semana_ed_obj['inicio'].strftime('%d/%m/%Y')} (Quinta) a "
+                f"{semana_ed_obj['fim'].strftime('%d/%m/%Y')} (Quarta)"
+            )
+
+            key_txt_ed = f"ed_txt_{reg_selecionado['id']}_{ed_mes}_{ed_semana}"
             ed_just = st.text_area(
                 "Descrição da Semana (Justificativa Consolidada)",
-                value=reg_selecionado["justificativa"],
-                height=95,
-                key=f"ed_txt_{reg_selecionado['id']}"
+                value=texto_base_ed,
+                height=105,
+                key=key_txt_ed
             )
 
             col_btn_save, col_btn_del, _ = st.columns([1.3, 1.1, 3.6])
