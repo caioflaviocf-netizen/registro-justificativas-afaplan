@@ -1711,7 +1711,8 @@ DEFAULTS_SESSION = {
     "usuario": "",
     "nome_colaborador": "",
     "funcao_colaborador": "",
-    "uf": "PA"
+    "uf": "PA",
+    "form_reset_seq": 0
 }
 for _k, _v in DEFAULTS_SESSION.items():
     if _k not in st.session_state:
@@ -1869,7 +1870,8 @@ def tela_registro():
             data_curta = d.strftime("%d/%m")
             data_comp = d.strftime("%d/%m/%Y")
             dia_sem_nome = DIAS_SEMANA_PT[d.weekday()]
-            key_input = f"inp_{usuario}_{mes_sel}_{semana_chave}_{data_curta}"
+            reset_seq = st.session_state.get("form_reset_seq", 0)
+            key_input = f"inp_{usuario}_{mes_sel}_{semana_chave}_{data_curta}_{reset_seq}"
 
             box_cls = "dia-card-box feriado-destaque" if feriado_valido else "dia-card-box"
             selo_html = (
@@ -1956,6 +1958,9 @@ def tela_registro():
             )
         st.markdown(acessos_html, unsafe_allow_html=True)
 
+    if st.session_state.get("msg_sucesso_cadastro"):
+        st.success(st.session_state.pop("msg_sucesso_cadastro"))
+
     # Botões de Ação centralizados (Cancelar | Limpar | Cadastrar)
     st.markdown("<br>", unsafe_allow_html=True)
     _, b1, b2, b3, _ = st.columns([1.8, 1, 1, 1, 1.8])
@@ -1967,10 +1972,7 @@ def tela_registro():
 
     with b2:
         if st.button("Limpar", use_container_width=True):
-            for d in semana_obj["dias"]:
-                k = f"inp_{usuario}_{mes_sel}_{semana_chave}_{d.strftime('%d/%m')}"
-                if k in st.session_state:
-                    st.session_state[k] = ""
+            st.session_state["form_reset_seq"] = st.session_state.get("form_reset_seq", 0) + 1
             st.rerun()
 
     with b3:
@@ -1989,11 +1991,8 @@ def tela_registro():
                     semana_op=semana_chave,
                     justificativa=justificativa_somada
                 )
-                for d in semana_obj["dias"]:
-                    k = f"inp_{usuario}_{mes_sel}_{semana_chave}_{d.strftime('%d/%m')}"
-                    if k in st.session_state:
-                        st.session_state[k] = ""
-                st.success("Justificativa semanal consolidada e registrada no Excel com sucesso!")
+                st.session_state["form_reset_seq"] = st.session_state.get("form_reset_seq", 0) + 1
+                st.session_state["msg_sucesso_cadastro"] = "Justificativa semanal consolidada e registrada no Excel com sucesso!"
                 st.rerun()
 
     # Histórico de Justificativas (Botão de Download habilitado EXCLUSIVAMENTE para o Líder)
