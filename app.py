@@ -260,10 +260,18 @@ st.markdown("""
         background-color: #0f4c9a !important;
         border-color: #0f4c9a !important;
     }
-    div.stButton > button {
-        background-color: #ffffff;
-        color: #1f2933;
-        border: 1px solid #cbd2d9;
+    div.stButton > button,
+    div.stDownloadButton > button {
+        background-color: #ffffff !important;
+        color: #1f2933 !important;
+        border: 1px solid #cbd2d9 !important;
+        font-weight: 500;
+    }
+    div.stButton > button:hover,
+    div.stDownloadButton > button:hover {
+        background-color: #f0f4f8 !important;
+        border-color: #1560bd !important;
+        color: #1560bd !important;
     }
 
     /* Histórico de Justificativas */
@@ -1680,6 +1688,29 @@ def salvar_registro_excel(projeto, funcao, usuario, colaborador, mes_op, semana_
         wb.close()
 
 
+def atualizar_registro_excel(registro_id, projeto_atual, is_lider, nome_colaborador_restrito, novo_colaborador, nova_funcao, novo_mes, nova_semana, nova_justificativa):
+    with FileLock(LOCK_PATH, timeout=20):
+        wb = load_workbook(EXCEL_PATH)
+        ws = wb["Base_Justificativas"]
+        atualizado = False
+        for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            if str(row[0]) == str(registro_id) and str(row[2]) == projeto_atual:
+                if is_lider or str(row[5]) == nome_colaborador_restrito:
+                    ws.cell(row=idx, column=2, value=f"{agora_brasilia().strftime('%d/%m/%Y %H:%M:%S')} (Editado)")
+                    if is_lider:
+                        ws.cell(row=idx, column=4, value=nova_funcao)
+                        ws.cell(row=idx, column=6, value=novo_colaborador)
+                    ws.cell(row=idx, column=7, value=novo_mes)
+                    ws.cell(row=idx, column=8, value=nova_semana)
+                    ws.cell(row=idx, column=9, value=nova_justificativa)
+                    atualizado = True
+                    break
+        if atualizado:
+            wb.save(EXCEL_PATH)
+        wb.close()
+        return atualizado
+
+
 def excluir_registro_excel(registro_id, projeto_atual, is_lider, nome_colaborador_restrito):
     with FileLock(LOCK_PATH, timeout=20):
         wb = load_workbook(EXCEL_PATH)
@@ -1712,7 +1743,8 @@ DEFAULTS_SESSION = {
     "nome_colaborador": "",
     "funcao_colaborador": "",
     "uf": "PA",
-    "form_reset_seq": 0
+    "form_reset_seq": 0,
+    "registro_editando_id": None
 }
 for _k, _v in DEFAULTS_SESSION.items():
     if _k not in st.session_state:
@@ -1995,7 +2027,7 @@ def tela_registro():
                 st.session_state["msg_sucesso_cadastro"] = "Justificativa semanal consolidada e registrada no Excel com sucesso!"
                 st.rerun()
 
-    # Histórico de Justificativas (Botão de Download habilitado EXCLUSIVAMENTE para o Líder)
+    # Histórico de Justificativas (Líder: todos os registros + seleção/alteração/exclusão + download; Colaborador: apenas seus registros + alteração)
     st.markdown('<div class="hist-card">', unsafe_allow_html=True)
     if is_lider:
         col_hist_tit, col_dl = st.columns([4, 1.4])
@@ -2012,35 +2044,133 @@ def tela_registro():
                         use_container_width=True
                     )
     else:
-        st.markdown("### Histórico de Justificativas")
+        st.markdown("### Histórico de Justificativas (Meus Registros)")
 
     registros = ler_registros_excel(projeto, is_lider, nome_colab_logado)
+
+    # Filtro rápido para o Líder localizar registros por colaborador na visão geral
+    if is_lider and registros:
+        colabs_com_reg = ["Todos os Colaboradores"] + sorted(list({r["colaborador"] for r in registros}))
+        filtro_colab = st.selectbox("Filtrar histórico por colaborador:", colabs_com_reg, key="filtro_hist_lider")
+        if filtro_colab != "Todos os Colaboradores":
+            registros = [r for r in registros if r["colaborador"] == filtro_colab]
+
     if not registros:
         st.markdown(
             '<div class="hist-vazio-box">Nenhuma justificativa registrada até o momento.</div>',
             unsafe_allow_html=True
         )
     else:
-        h1, h2, h3, h4, h5, h6 = st.columns([1.2, 1.3, 1.1, 0.8, 3.2, 0.7])
-        h1.markdown("**Data/Hora**")
-        h2.markdown("**Colaborador**")
-        h3.markdown("**Mês de Operação**")
-        h4.markdown("**Semana**")
-        h5.markdown("**Descrição da Semana**")
-        h6.markdown("**Ações**")
-        st.markdown("<hr style='margin: 4px 0 10px 0;'>", unsafe_allow_html=True)
+        # Painel de seleção para Alteração (ou Exclusão pelo Líder)
+        opcoes_regs = {
+            f"{r['data_hora']} | {r['colaborador']} | {r['mes']} ({r['semana']})": r
+            for r in registros
+        }
+        rotulo_sel = st.selectbox(
+            "Selecione um registro abaixo para alterar" + (" ou excluir:" if is_lider else ":"),
+            list(opcoes_regs.keys()),
+            key="sel_registro_edicao"
+        )
+        reg_selecionado = opcoes_regs[rotulo_sel]
 
-        for reg in registros:
-            r1, r2, r3, r4, r5, r6 = st.columns([1.2, 1.3, 1.1, 0.8, 3.2, 0.7])
-            r1.write(reg["data_hora"])
-            r2.markdown(f"**{reg['colaborador']}**")
-            r3.write(reg["mes"])
-            r4.write(reg["semana"])
-            r5.write(reg["justificativa"])
-            if r6.button("Excluir", key=f"del_{reg['id']}"):
-                excluir_registro_excel(reg["id"], projeto, is_lider, nome_colab_logado)
-                st.rerun()
-            st.markdown("<hr style='margin: 6px 0; border-top: 1px solid #e4e7eb;'>", unsafe_allow_html=True)
+        with st.expander("✏️ Alterar Registro Selecionado", expanded=True):
+            ec1, ec2, ec3 = st.columns([1.5, 1.1, 1.2])
+            with ec1:
+                if is_lider:
+                    todos_colabs_ed = [u["nome"] for u in ACESSOS_PROJETOS[projeto]["usuarios"].values()]
+                    idx_c = todos_colabs_ed.index(reg_selecionado["colaborador"]) if reg_selecionado["colaborador"] in todos_colabs_ed else 0
+                    ed_colab = st.selectbox("Colaborador", todos_colabs_ed, index=idx_c, key=f"ed_col_{reg_selecionado['id']}")
+                    ed_funcao = next(
+                        (u["funcao"] for u in ACESSOS_PROJETOS[projeto]["usuarios"].values() if u["nome"] == ed_colab),
+                        reg_selecionado["funcao"]
+                    )
+                else:
+                    ed_colab = st.selectbox("Colaborador", [nome_colab_logado], index=0, disabled=True, key=f"ed_col_{reg_selecionado['id']}")
+                    ed_funcao = funcao_colab_logado
+            with ec2:
+                idx_m = OPCOES_MES_ANO.index(reg_selecionado["mes"]) if reg_selecionado["mes"] in OPCOES_MES_ANO else 0
+                ed_mes = st.selectbox("Mês/Ano de Operação", OPCOES_MES_ANO, index=idx_m, key=f"ed_mes_{reg_selecionado['id']}")
+            with ec3:
+                semanas_ed = gerar_semanas_quinta_quarta(ed_mes)
+                chaves_sem_ed = [s["chave"] for s in semanas_ed]
+                idx_s = chaves_sem_ed.index(reg_selecionado["semana"]) if reg_selecionado["semana"] in chaves_sem_ed else 0
+                ed_semana = st.selectbox("Semana", chaves_sem_ed, index=idx_s, key=f"ed_sem_{reg_selecionado['id']}")
+
+            ed_just = st.text_area(
+                "Descrição da Semana (Justificativa Consolidada)",
+                value=reg_selecionado["justificativa"],
+                height=95,
+                key=f"ed_txt_{reg_selecionado['id']}"
+            )
+
+            col_btn_save, col_btn_del, _ = st.columns([1.3, 1.1, 3.6])
+            with col_btn_save:
+                if st.button("💾 Salvar Alteração", type="primary", key=f"btn_save_ed_{reg_selecionado['id']}", use_container_width=True):
+                    if not ed_just.strip():
+                        st.warning("A descrição da justificativa não pode ficar vazia.")
+                    else:
+                        ok = atualizar_registro_excel(
+                            registro_id=reg_selecionado["id"],
+                            projeto_atual=projeto,
+                            is_lider=is_lider,
+                            nome_colaborador_restrito=nome_colab_logado,
+                            novo_colaborador=ed_colab,
+                            nova_funcao=ed_funcao,
+                            novo_mes=ed_mes,
+                            nova_semana=ed_semana,
+                            nova_justificativa=ed_just.strip()
+                        )
+                        if ok:
+                            st.session_state["msg_sucesso_cadastro"] = "Registro atualizado com sucesso no Excel!"
+                            st.rerun()
+            if is_lider:
+                with col_btn_del:
+                    if st.button("🗑️ Excluir Selecionado", key=f"btn_del_top_{reg_selecionado['id']}", use_container_width=True):
+                        excluir_registro_excel(reg_selecionado["id"], projeto, is_lider, nome_colab_logado)
+                        st.session_state["msg_sucesso_cadastro"] = "Registro excluído com sucesso!"
+                        st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        # Tabela geral de visualização
+        if is_lider:
+            h1, h2, h3, h4, h5, h6 = st.columns([1.2, 1.3, 1.1, 0.8, 3.1, 0.8])
+            h1.markdown("**Data/Hora**")
+            h2.markdown("**Colaborador**")
+            h3.markdown("**Mês de Operação**")
+            h4.markdown("**Semana**")
+            h5.markdown("**Descrição da Semana**")
+            h6.markdown("**Ações**")
+            st.markdown("<hr style='margin: 4px 0 10px 0;'>", unsafe_allow_html=True)
+
+            for reg in registros:
+                r1, r2, r3, r4, r5, r6 = st.columns([1.2, 1.3, 1.1, 0.8, 3.1, 0.8])
+                r1.write(reg["data_hora"])
+                r2.markdown(f"**{reg['colaborador']}**")
+                r3.write(reg["mes"])
+                r4.write(reg["semana"])
+                r5.write(reg["justificativa"])
+                if r6.button("Excluir", key=f"del_{reg['id']}"):
+                    excluir_registro_excel(reg["id"], projeto, is_lider, nome_colab_logado)
+                    st.rerun()
+                st.markdown("<hr style='margin: 6px 0; border-top: 1px solid #e4e7eb;'>", unsafe_allow_html=True)
+        else:
+            # Colaborador comum visualiza apenas os próprios registros (sem botão de excluir registros)
+            h1, h2, h3, h4, h5 = st.columns([1.3, 1.4, 1.1, 0.9, 3.6])
+            h1.markdown("**Data/Hora**")
+            h2.markdown("**Colaborador**")
+            h3.markdown("**Mês de Operação**")
+            h4.markdown("**Semana**")
+            h5.markdown("**Descrição da Semana**")
+            st.markdown("<hr style='margin: 4px 0 10px 0;'>", unsafe_allow_html=True)
+
+            for reg in registros:
+                r1, r2, r3, r4, r5 = st.columns([1.3, 1.4, 1.1, 0.9, 3.6])
+                r1.write(reg["data_hora"])
+                r2.markdown(f"**{reg['colaborador']}**")
+                r3.write(reg["mes"])
+                r4.write(reg["semana"])
+                r5.write(reg["justificativa"])
+                st.markdown("<hr style='margin: 6px 0; border-top: 1px solid #e4e7eb;'>", unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
